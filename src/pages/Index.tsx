@@ -14,6 +14,10 @@ interface NewsItem {
   category: string;
   date: string;
   comments: Comment[];
+  likes: number;
+  dislikes: number;
+  rating: number;
+  ratingCount: number;
 }
 
 interface Comment {
@@ -21,6 +25,8 @@ interface Comment {
   author: string;
   text: string;
   date: string;
+  likes: number;
+  dislikes: number;
 }
 
 const Index = () => {
@@ -28,17 +34,26 @@ const Index = () => {
   const [activeSection, setActiveSection] = useState('home');
   const [newComment, setNewComment] = useState('');
   const [selectedNewsId, setSelectedNewsId] = useState<number | null>(null);
+  const [likedNews, setLikedNews] = useState<Set<number>>(new Set());
+  const [dislikedNews, setDislikedNews] = useState<Set<number>>(new Set());
+  const [likedComments, setLikedComments] = useState<Set<number>>(new Set());
+  const [dislikedComments, setDislikedComments] = useState<Set<number>>(new Set());
+  const [userRatings, setUserRatings] = useState<Map<number, number>>(new Map());
 
-  const newsItems: NewsItem[] = [
+  const [newsItems, setNewsItems] = useState<NewsItem[]>([
     {
       id: 1,
       title: "Новые технологии в образовании",
       description: "Исследование показывает, как ИИ меняет процесс обучения и делает образование более доступным для всех категорий студентов.",
       category: "Технологии",
       date: "29 июля 2025",
+      likes: 24,
+      dislikes: 3,
+      rating: 4.5,
+      ratingCount: 18,
       comments: [
-        { id: 1, author: "Анна К.", text: "Очень интересная статья! ИИ действительно революционизирует образование.", date: "29 июля 2025" },
-        { id: 2, author: "Михаил С.", text: "А как насчёт этических вопросов использования ИИ в школах?", date: "29 июля 2025" }
+        { id: 1, author: "Анна К.", text: "Очень интересная статья! ИИ действительно революционизирует образование.", date: "29 июля 2025", likes: 12, dislikes: 1 },
+        { id: 2, author: "Михаил С.", text: "А как насчёт этических вопросов использования ИИ в школах?", date: "29 июля 2025", likes: 8, dislikes: 2 }
       ]
     },
     {
@@ -47,8 +62,12 @@ const Index = () => {
       description: "Анализ успешных проектов по озеленению и снижению углеродного следа в крупных городах России и мира.",
       category: "Экология",
       date: "28 июля 2025",
+      likes: 31,
+      dislikes: 2,
+      rating: 4.8,
+      ratingCount: 22,
       comments: [
-        { id: 3, author: "Елена Р.", text: "Отличные примеры! Нужно больше таких инициатив в нашем городе.", date: "28 июля 2025" }
+        { id: 3, author: "Елена Р.", text: "Отличные примеры! Нужно больше таких инициатив в нашем городе.", date: "28 июля 2025", likes: 15, dislikes: 0 }
       ]
     },
     {
@@ -57,9 +76,13 @@ const Index = () => {
       description: "Последние достижения в области космонавтики и планы освоения Марса в ближайшие десятилетия.",
       category: "Космос",
       date: "27 июля 2025",
+      likes: 19,
+      dislikes: 4,
+      rating: 4.2,
+      ratingCount: 14,
       comments: []
     }
-  ];
+  ]);
 
   const filteredNews = newsItems.filter(item =>
     item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -73,6 +96,150 @@ const Index = () => {
       setNewComment('');
       setSelectedNewsId(null);
     }
+  };
+
+  const handleNewsLike = (newsId: number) => {
+    const newLikedNews = new Set(likedNews);
+    const newDislikedNews = new Set(dislikedNews);
+    
+    if (likedNews.has(newsId)) {
+      newLikedNews.delete(newsId);
+    } else {
+      newLikedNews.add(newsId);
+      newDislikedNews.delete(newsId);
+    }
+    
+    setLikedNews(newLikedNews);
+    setDislikedNews(newDislikedNews);
+    
+    setNewsItems(items => items.map(item => {
+      if (item.id === newsId) {
+        let likes = item.likes;
+        let dislikes = item.dislikes;
+        
+        if (newLikedNews.has(newsId) && !likedNews.has(newsId)) {
+          likes += 1;
+          if (dislikedNews.has(newsId)) dislikes -= 1;
+        } else if (!newLikedNews.has(newsId) && likedNews.has(newsId)) {
+          likes -= 1;
+        }
+        
+        return { ...item, likes, dislikes };
+      }
+      return item;
+    }));
+  };
+  
+  const handleNewsDislike = (newsId: number) => {
+    const newLikedNews = new Set(likedNews);
+    const newDislikedNews = new Set(dislikedNews);
+    
+    if (dislikedNews.has(newsId)) {
+      newDislikedNews.delete(newsId);
+    } else {
+      newDislikedNews.add(newsId);
+      newLikedNews.delete(newsId);
+    }
+    
+    setLikedNews(newLikedNews);
+    setDislikedNews(newDislikedNews);
+    
+    setNewsItems(items => items.map(item => {
+      if (item.id === newsId) {
+        let likes = item.likes;
+        let dislikes = item.dislikes;
+        
+        if (newDislikedNews.has(newsId) && !dislikedNews.has(newsId)) {
+          dislikes += 1;
+          if (likedNews.has(newsId)) likes -= 1;
+        } else if (!newDislikedNews.has(newsId) && dislikedNews.has(newsId)) {
+          dislikes -= 1;
+        }
+        
+        return { ...item, likes, dislikes };
+      }
+      return item;
+    }));
+  };
+  
+  const handleCommentLike = (commentId: number) => {
+    const newLikedComments = new Set(likedComments);
+    const newDislikedComments = new Set(dislikedComments);
+    
+    if (likedComments.has(commentId)) {
+      newLikedComments.delete(commentId);
+    } else {
+      newLikedComments.add(commentId);
+      newDislikedComments.delete(commentId);
+    }
+    
+    setLikedComments(newLikedComments);
+    setDislikedComments(newDislikedComments);
+  };
+  
+  const handleCommentDislike = (commentId: number) => {
+    const newLikedComments = new Set(likedComments);
+    const newDislikedComments = new Set(dislikedComments);
+    
+    if (dislikedComments.has(commentId)) {
+      newDislikedComments.delete(commentId);
+    } else {
+      newDislikedComments.add(commentId);
+      newLikedComments.delete(commentId);
+    }
+    
+    setLikedComments(newLikedComments);
+    setDislikedComments(newDislikedComments);
+  };
+  
+  const handleRating = (newsId: number, rating: number) => {
+    const newRatings = new Map(userRatings);
+    newRatings.set(newsId, rating);
+    setUserRatings(newRatings);
+    
+    setNewsItems(items => items.map(item => {
+      if (item.id === newsId) {
+        const hasUserRated = userRatings.has(newsId);
+        const newRatingCount = hasUserRated ? item.ratingCount : item.ratingCount + 1;
+        const oldUserRating = userRatings.get(newsId) || 0;
+        const totalRating = (item.rating * item.ratingCount) - (hasUserRated ? oldUserRating : 0) + rating;
+        const newRating = totalRating / newRatingCount;
+        
+        return { ...item, rating: newRating, ratingCount: newRatingCount };
+      }
+      return item;
+    }));
+  };
+  
+  const renderStars = (rating: number, interactive: boolean = false, newsId?: number) => {
+    const stars = [];
+    const userRating = newsId ? userRatings.get(newsId) : 0;
+    
+    for (let i = 1; i <= 5; i++) {
+      const isFilled = interactive ? i <= (userRating || 0) : i <= Math.round(rating);
+      const isHalfFilled = !interactive && i === Math.ceil(rating) && rating % 1 !== 0;
+      
+      stars.push(
+        <button
+          key={i}
+          onClick={() => interactive && newsId && handleRating(newsId, i)}
+          className={`transition-all duration-200 ${interactive ? 'hover:scale-110 cursor-pointer' : 'cursor-default'}`}
+          disabled={!interactive}
+        >
+          <Icon 
+            name="Star" 
+            size={16} 
+            className={`${
+              isFilled ? 'text-yellow-400 fill-yellow-400' : 
+              isHalfFilled ? 'text-yellow-400 fill-yellow-200' : 
+              'text-gray-300'
+            } transition-colors duration-200`} 
+          />
+        </button>
+      );
+    }
+    
+    return stars;
   };
 
   return (
@@ -176,7 +343,65 @@ const Index = () => {
                   </p>
                   
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    {/* Rating Section */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1">
+                          {renderStars(item.rating)}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {item.rating.toFixed(1)} ({item.ratingCount})
+                        </span>
+                      </div>
+                      <Button variant="ghost" size="sm">
+                        Читать
+                      </Button>
+                    </div>
+                    
+                    {/* Interactive Rating */}
+                    <div className="mb-4">
+                      <div className="text-xs text-muted-foreground mb-2">Ваша оценка:</div>
+                      <div className="flex items-center space-x-1">
+                        {renderStars(0, true, item.id)}
+                      </div>
+                    </div>
+                    
+                    {/* Like/Dislike Section */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-4">
+                        <button
+                          onClick={() => handleNewsLike(item.id)}
+                          className={`flex items-center space-x-1 text-xs transition-all duration-200 hover:scale-105 ${
+                            likedNews.has(item.id) ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+                          }`}
+                        >
+                          <Icon 
+                            name="ThumbsUp" 
+                            size={14} 
+                            className={`transition-all duration-200 ${
+                              likedNews.has(item.id) ? 'fill-primary' : ''
+                            }`} 
+                          />
+                          <span className="font-medium">{item.likes}</span>
+                        </button>
+                        
+                        <button
+                          onClick={() => handleNewsDislike(item.id)}
+                          className={`flex items-center space-x-1 text-xs transition-all duration-200 hover:scale-105 ${
+                            dislikedNews.has(item.id) ? 'text-red-500' : 'text-muted-foreground hover:text-red-500'
+                          }`}
+                        >
+                          <Icon 
+                            name="ThumbsDown" 
+                            size={14} 
+                            className={`transition-all duration-200 ${
+                              dislikedNews.has(item.id) ? 'fill-red-500' : ''
+                            }`} 
+                          />
+                          <span className="font-medium">{item.dislikes}</span>
+                        </button>
+                      </div>
+                      
                       <div className="flex items-center space-x-4 text-xs text-muted-foreground">
                         <div className="flex items-center space-x-1">
                           <Icon name="MessageCircle" size={14} />
@@ -187,9 +412,6 @@ const Index = () => {
                           <span>{Math.floor(Math.random() * 500) + 100}</span>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm">
-                        Читать
-                      </Button>
                     </div>
 
                     {/* Comments Section */}
@@ -207,7 +429,42 @@ const Index = () => {
                                 <span className="text-xs font-medium">{comment.author}</span>
                                 <span className="text-xs text-muted-foreground">{comment.date}</span>
                               </div>
-                              <p className="text-xs text-muted-foreground">{comment.text}</p>
+                              <p className="text-xs text-muted-foreground mb-2">{comment.text}</p>
+                              
+                              {/* Comment Likes */}
+                              <div className="flex items-center space-x-3">
+                                <button
+                                  onClick={() => handleCommentLike(comment.id)}
+                                  className={`flex items-center space-x-1 text-xs transition-all duration-200 hover:scale-105 ${
+                                    likedComments.has(comment.id) ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+                                  }`}
+                                >
+                                  <Icon 
+                                    name="ThumbsUp" 
+                                    size={12} 
+                                    className={`transition-all duration-200 ${
+                                      likedComments.has(comment.id) ? 'fill-primary' : ''
+                                    }`} 
+                                  />
+                                  <span>{comment.likes + (likedComments.has(comment.id) && !likedComments.has(comment.id) ? 1 : 0)}</span>
+                                </button>
+                                
+                                <button
+                                  onClick={() => handleCommentDislike(comment.id)}
+                                  className={`flex items-center space-x-1 text-xs transition-all duration-200 hover:scale-105 ${
+                                    dislikedComments.has(comment.id) ? 'text-red-500' : 'text-muted-foreground hover:text-red-500'
+                                  }`}
+                                >
+                                  <Icon 
+                                    name="ThumbsDown" 
+                                    size={12} 
+                                    className={`transition-all duration-200 ${
+                                      dislikedComments.has(comment.id) ? 'fill-red-500' : ''
+                                    }`} 
+                                  />
+                                  <span>{comment.dislikes + (dislikedComments.has(comment.id) && !dislikedComments.has(comment.id) ? 1 : 0)}</span>
+                                </button>
+                              </div>
                             </div>
                           ))}
                           
